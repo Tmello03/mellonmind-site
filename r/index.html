@@ -140,7 +140,7 @@ input:focus-visible+.ring{outline:2px solid var(--accent);outline-offset:2px}
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && wake.getAttribute('aria-pressed') === 'true' && !lock && navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { lock = l; }, function () {}); });
   }
 
-  decode(hash).then(render, function (why) {
+  Promise.resolve().then(function () { return decode(hash); }).then(render, function (why) {
     fail(why === 'old' ? 'This browser is too old to open this recipe. Try the latest Safari or Chrome.' : 'This recipe link is incomplete. Ask the sender to share it again.');
   });
 })();

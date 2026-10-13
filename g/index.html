@@ -1,0 +1,51 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
+<title>Ideas</title>
+<style>
+@font-face{font-family:'Instrument Serif';src:url(../r/InstrumentSerif-Regular.ttf) format('truetype');font-display:swap}
+:root{--bg:#f5f3ee;--card:#fff;--ink:#1c1a17;--body:#3a3631;--mute:#6b665d;--rule:#dcd6c9;--accent:#5b4bd6}
+@media (prefers-color-scheme:dark){:root{--bg:#121110;--card:#1c1b19;--ink:#f0ece4;--body:#d6d0c4;--mute:#a39d90;--rule:#2d2a25;--accent:#9b8dff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--body);font:17px/1.5 -apple-system,system-ui,sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:680px;margin:0 auto;padding:28px 20px 90px}
+.kicker{color:var(--mute);font-size:14px}h1{font:400 40px/1.08 'Instrument Serif','Iowan Old Style',Georgia,serif;color:var(--ink);margin:4px 0 14px;letter-spacing:-.4px}
+.idea{padding:14px 0;border-top:1px solid var(--rule)}.idea:last-child{border-bottom:1px solid var(--rule)}
+.idea h3{font:400 22px 'Instrument Serif',Georgia,serif;color:var(--ink);margin:0 0 2px}
+.price{color:var(--mute);font-size:15px}.note{font-size:15px;color:var(--mute);margin-top:2px}
+a{color:var(--accent);word-break:break-all}.foot{color:var(--mute);font-size:13px;margin-top:28px}
+</style></head><body><main>
+<div class="kicker" id="kicker"></div><h1 id="title">Ideas</h1><div id="list"></div><p id="msg"></p>
+<p class="foot">Shared from MellonMind. This page only reads the link it was opened with; nothing is sent anywhere.</p>
+</main>
+<script>
+(function () {
+  function b64(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+  function inflate(bytes) { var ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter(); w.write(bytes); w.close(); return new Response(ds.readable).arrayBuffer(); }
+  function decode(h) {
+    if (!h) return Promise.reject();
+    var kind = h.charAt(0), bytes = b64(h.slice(1));
+    if (kind === 'j') return Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)));
+    if (kind === 'z') { if (!window.DecompressionStream) return Promise.reject('old'); return inflate(bytes).then(function (buf) { return JSON.parse(new TextDecoder().decode(buf)); }); }
+    return Promise.reject();
+  }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function safe(u) { return typeof u === 'string' && /^https:\/\//i.test(u); }
+  function render(d) {
+    if (!d || typeof d !== 'object' || !Array.isArray(d.i)) throw 0;
+    document.getElementById('kicker').textContent = d.w ? 'Wish list' : 'Gift ideas';
+    document.getElementById('title').textContent = String(d.t || 'Ideas');
+    document.title = String(d.t || 'Ideas');
+    var list = document.getElementById('list');
+    (d.i || []).forEach(function (x) {
+      var row = el('div', 'idea');
+      row.appendChild(el('h3', null, String(x[0] || '')));
+      if (x[2]) row.appendChild(el('div', 'price', String(x[2])));
+      if (x[3]) row.appendChild(el('div', 'note', String(x[3])));
+      if (safe(x[1])) { var p = el('div'); var a = el('a', null, x[1]); a.href = x[1]; a.rel = 'noopener noreferrer nofollow'; p.appendChild(a); row.appendChild(p); }
+      list.appendChild(row);
+    });
+  }
+  Promise.resolve().then(function () { return decode(location.hash.slice(1)); }).then(render, function (why) {
+    document.getElementById('msg').textContent = why === 'old' ? 'This browser is too old to open this page.' : 'This link looks incomplete. Ask for it again.';
+  });
+})();
+</script></body></html>
