@@ -128,7 +128,7 @@ input:focus-visible+.ring{outline:2px solid var(--accent);outline-offset:2px}
     }
     section('Ingredients', d.i || [], false);
     section('Steps', d.p || [], true);
-    app.appendChild(el('p', 'foot', 'Shared from MellonMind. Amounts are for the servings shown. Keep this page open while a timer runs.'));
+    app.appendChild(el('p', 'foot', 'Shared from Unspool. Amounts are for the servings shown. Keep this page open while a timer runs.'));
 
     clear.onclick = function () { ticks = {}; saveTicks(); document.querySelectorAll('input[type=checkbox]').forEach(function (c) { c.checked = false; }); };
     var lock = null;
