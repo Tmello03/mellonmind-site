@@ -11,14 +11,14 @@ main{max-width:680px;margin:0 auto;padding:28px 20px 90px}
 .meta{color:var(--mute);font-size:15px}.notice{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:12px 14px;font-size:14px;margin:16px 0 0}
 h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);font-weight:600;margin:34px 0 4px}
 h3{font:400 19px 'Instrument Serif',Georgia,serif;color:var(--ink);margin:18px 0 2px}
-.row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--rule);cursor:pointer}
-.row:last-child{border-bottom:1px solid var(--rule)}.row input{position:absolute;opacity:0}
+.item{border-top:1px solid var(--rule)}.row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;cursor:pointer}
+.row input{position:absolute;opacity:0}
 .ring{flex:none;width:22px;height:22px;border:1.8px solid var(--mute);border-radius:50%;margin-top:2px}
 input:checked+.ring{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 4px var(--bg)}
 input:checked+.ring+.txt{color:var(--mute);text-decoration:line-through}
 input:focus-visible+.ring{outline:2px solid var(--accent);outline-offset:2px}
 .n{flex:none;width:18px;text-align:right;color:var(--mute);font-size:13px;margin-top:4px}
-.timers{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.timers{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 12px 64px}
 .timer{font:inherit;font-size:15px;font-variant-numeric:tabular-nums;color:var(--accent);background:var(--card);border:1px solid var(--rule);border-radius:99px;padding:6px 14px;cursor:pointer;min-height:36px}
 .timer.on{background:var(--accent);border-color:var(--accent);color:var(--bg)}
 .timer.done{border-color:var(--warm);color:var(--warm)}
@@ -33,7 +33,8 @@ input:focus-visible+.ring{outline:2px solid var(--accent);outline-offset:2px}
 <script>
 (function () {
   var app = document.getElementById('app'), msg = document.getElementById('msg');
-  function fail(t) { msg.textContent = t; }
+  // #msg sits inside #app, which render() clears: put it back so a failure is always shown.
+  function fail(t) { app.textContent = ''; msg.textContent = t; app.appendChild(msg); }
   function b64(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
   function inflate(bytes) {
     var ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter(); w.write(bytes); w.close();
@@ -47,6 +48,14 @@ input:focus-visible+.ring{outline:2px solid var(--accent);outline-offset:2px}
     return Promise.reject();
   }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  // The app's Recipe.servingsText: a bare number gets "serving(s)", anything else ("4 servings", "Makes 12") shows as written.
+  function servings(s) { var t = String(s).trim(); if (/^[+-]?\d+$/.test(t)) { var n = parseInt(t, 10); return n === 1 ? '1 serving' : n + ' servings'; } return t; }
+  // A link the app made always has this shape; a cut or edited one may not, and gets the incomplete-link message, not half a page.
+  function rows(x) { return Array.isArray(x) && x.every(Array.isArray); }
+  function valid(d) {
+    return !!d && typeof d === 'object' && rows(d.i) && rows(d.p)
+      && d.p.every(function (s) { return s[2] == null || rows(s[2]); });
+  }
   function fmt(s) { s = Math.max(0, Math.round(s)); var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), r = s % 60; return (h ? h + ':' + (m < 10 ? '0' : '') + m : m) + ':' + (r < 10 ? '0' : '') + r; }
 
   var hash = location.hash.slice(1), key = 'mm:' + hash.slice(0, 64) + hash.length, ticks = {};
@@ -82,18 +91,19 @@ input:focus-visible+.ring{outline:2px solid var(--accent);outline-offset:2px}
   }
 
   function render(d) {
-    document.title = d.t || 'Recipe';
+    if (!valid(d)) throw 0;
+    document.title = String(d.t || 'Recipe');
     app.textContent = '';
     app.appendChild(el('div', 'kicker', 'Recipe'));
-    app.appendChild(el('h1', '', d.t || 'Recipe'));
+    app.appendChild(el('h1', '', String(d.t || 'Recipe')));
     var facts = [];
-    if (d.s) facts.push(d.s + ' servings');
+    if (d.s) { var sv = servings(d.s); if (sv) facts.push(sv); }
     if (d.m) facts.push(d.m >= 60 ? Math.floor(d.m / 60) + ' h' + (d.m % 60 ? ' ' + d.m % 60 + ' min' : '') : d.m + ' min');
     var nt = (d.p || []).reduce(function (a, s) { return a + (s[2] || []).length; }, 0);
     if (nt) facts.push(nt === 1 ? '1 timer' : nt + ' timers');
     if (facts.length) app.appendChild(el('div', 'meta', facts.join(' · ')));
     if (d.d) app.appendChild(el('p', 'notice', 'The steps were suggested by AI and can be wrong. Check the times and temperatures and use your own judgment.'));
-    if (d.u && /^https?:\/\//i.test(d.u)) { var p = el('p', 'src', 'From '), a = el('a', '', ''); try { a.textContent = new URL(d.u).host; } catch (e) { a.textContent = d.u; } a.href = d.u; a.rel = 'noopener noreferrer'; p.appendChild(a); app.appendChild(p); }
+    if (typeof d.u === 'string' && /^https:\/\//i.test(d.u)) { var p = el('p', 'src', 'From '), a = el('a', '', ''); try { a.textContent = new URL(d.u).host; } catch (e) { a.textContent = d.u; } a.href = d.u; a.rel = 'noopener noreferrer'; p.appendChild(a); app.appendChild(p); }
 
     var bar = el('div', 'bar'); bar.appendChild(el('span', '', 'Tap to tick things off.'));
     var side = el('span'); var wake = el('button', 'btn', 'Keep screen on'); wake.setAttribute('aria-pressed', 'false');
@@ -107,12 +117,14 @@ input:focus-visible+.ring{outline:2px solid var(--accent);outline-offset:2px}
         var sec = r[1];
         if (sec && sec !== last) app.appendChild(el('h3', '', sec));
         last = sec;
-        var lab = el('label', 'row' + (step ? ' step' : '')), k = (step ? 's' : 'i') + i;
+        // The label holds only the number, the box and the words (they name the checkbox); timer buttons sit after it.
+        var item = el('div', 'item'), lab = el('label', 'row' + (step ? ' step' : '')), k = (step ? 's' : 'i') + i;
         if (step) lab.appendChild(el('span', 'n', String(i + 1)));
         var cb = el('input'); cb.type = 'checkbox'; cb.checked = !!ticks[k];
         cb.onchange = function () { ticks[k] = cb.checked; saveTicks(); };
         lab.appendChild(cb); lab.appendChild(el('span', 'ring'));
-        var txt = el('span', 'txt'); txt.appendChild(document.createTextNode(r[0]));
+        var txt = el('span', 'txt'); txt.appendChild(document.createTextNode(String(r[0] == null ? '' : r[0])));
+        lab.appendChild(txt); item.appendChild(lab);
         var tms = step ? (r[2] || []) : [];
         if (tms.length) {
           var box = el('div', 'timers');
@@ -121,9 +133,9 @@ input:focus-visible+.ring{outline:2px solid var(--accent);outline-offset:2px}
             b.type = 'button'; b.onclick = function (e) { e.preventDefault(); e.stopPropagation(); startTimer(b, tm, label); };
             box.appendChild(b);
           });
-          txt.appendChild(box);
+          item.appendChild(box);
         }
-        lab.appendChild(txt); app.appendChild(lab);
+        app.appendChild(item);
       });
     }
     section('Ingredients', d.i || [], false);
@@ -131,16 +143,33 @@ input:focus-visible+.ring{outline:2px solid var(--accent);outline-offset:2px}
     app.appendChild(el('p', 'foot', 'Shared from Unspool. Amounts are for the servings shown. Keep this page open while a timer runs.'));
 
     clear.onclick = function () { ticks = {}; saveTicks(); document.querySelectorAll('input[type=checkbox]').forEach(function (c) { c.checked = false; }); };
-    var lock = null;
+    // wantLock is the cook's choice; lock is what the browser holds now. Browsers let go of the lock when the page is hidden,
+    // so it is asked for again on coming back, for as long as the button is on.
+    var lock = null, wantLock = false, asking = false;
+    function setPressed(on) { wake.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+    function holdScreen(fromTap) {
+      if (!wantLock || lock || asking || document.visibilityState !== 'visible') return;
+      asking = true;
+      navigator.wakeLock.request('screen').then(function (l) {
+        asking = false;
+        if (!wantLock) { l.release(); return; }
+        lock = l;
+        l.addEventListener('release', function () { if (lock === l) lock = null; });
+      }, function () {
+        asking = false;
+        if (fromTap) { wantLock = false; setPressed(false); }   // refused right away (battery saver, say): show it as off
+      });
+    }
     wake.onclick = function () {
-      if (lock) { lock.release(); lock = null; wake.setAttribute('aria-pressed', 'false'); return; }
       if (!navigator.wakeLock) { wake.textContent = 'Not supported here'; return; }
-      navigator.wakeLock.request('screen').then(function (l) { lock = l; wake.setAttribute('aria-pressed', 'true'); l.addEventListener('release', function () { lock = null; wake.setAttribute('aria-pressed', 'false'); }); }, function () {});
+      wantLock = !wantLock; setPressed(wantLock);
+      if (wantLock) holdScreen(true);
+      else if (lock) { var l = lock; lock = null; l.release(); }
     };
-    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && wake.getAttribute('aria-pressed') === 'true' && !lock && navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { lock = l; }, function () {}); });
+    document.addEventListener('visibilitychange', function () { holdScreen(false); });
   }
 
-  Promise.resolve().then(function () { return decode(hash); }).then(render, function (why) {
+  Promise.resolve().then(function () { return decode(hash); }).then(render).catch(function (why) {
     fail(why === 'old' ? 'This browser is too old to open this recipe. Try the latest Safari or Chrome.' : 'This recipe link is incomplete. Ask the sender to share it again.');
   });
 })();

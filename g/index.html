@@ -30,7 +30,8 @@ a{color:var(--accent);word-break:break-all}.foot{color:var(--mute);font-size:13p
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function safe(u) { return typeof u === 'string' && /^https:\/\//i.test(u); }
   function render(d) {
-    if (!d || typeof d !== 'object' || !Array.isArray(d.i)) throw 0;
+    // A link the app made always has this shape; a cut or edited one gets the incomplete-link message, not half a list.
+    if (!d || typeof d !== 'object' || !Array.isArray(d.i) || !d.i.every(Array.isArray)) throw 0;
     document.getElementById('kicker').textContent = d.w ? 'Wish list' : 'Gift ideas';
     document.getElementById('title').textContent = String(d.t || 'Ideas');
     document.title = String(d.t || 'Ideas');
@@ -44,7 +45,8 @@ a{color:var(--accent);word-break:break-all}.foot{color:var(--mute);font-size:13p
       list.appendChild(row);
     });
   }
-  Promise.resolve().then(function () { return decode(location.hash.slice(1)); }).then(render, function (why) {
+  Promise.resolve().then(function () { return decode(location.hash.slice(1)); }).then(render).catch(function (why) {
+    document.getElementById('list').textContent = '';
     document.getElementById('msg').textContent = why === 'old' ? 'This browser is too old to open this page.' : 'This link looks incomplete. Ask for it again.';
   });
 })();
